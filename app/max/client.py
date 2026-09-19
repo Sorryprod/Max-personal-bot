@@ -107,6 +107,10 @@ class MaxClient:
     # --- реализация app.messaging.Messenger: ошибки не пробрасываются наружу ---
 
     async def send(self, message: OutMessage) -> bool:
+        if message.user_id <= 0:
+            # id в MAX положительные; отрицательные — у синтетических демо-пользователей из seed.
+            log.info("Сообщение демо-пользователю %s не отправляется", message.user_id)
+            return False
         body: dict[str, Any] = {"text": message.text, "format": "html"}
         attachments = to_max_attachments(message.keyboard, self.bot_username)
         if attachments:

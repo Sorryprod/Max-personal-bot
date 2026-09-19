@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.api import applications as applications_api
 from app.api import errors as api_errors
 from app.api import vacancies as vacancies_api
 from app.bot.router import Dispatcher
@@ -85,6 +86,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.include_router(webhook.router)
     app.include_router(vacancies_api.router)
+    app.include_router(applications_api.router)
     api_errors.install(app)
 
     @app.get("/health", include_in_schema=False)

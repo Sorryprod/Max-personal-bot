@@ -41,3 +41,27 @@ body { margin: 0; }
 
 .link-box { padding: 10px 12px; border-radius: var(--radius); background: var(--surface); font-family: ui-monospace, monospace; font-size: 13px; word-break: break-all; user-select: all; }
 .backbar { padding: 12px 16px 0; max-width: 640px; margin: 0 auto; box-sizing: border-box; }
+
+/* кандидаты */
+.small { font-size: 12px; }
+.candidate__head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--gap); }
+.candidate--failed { opacity: 0.85; }
+.phone { color: var(--accent); text-decoration: none; font-size: 14px; }
+.warn { font-size: 13px; color: var(--danger); }
+.answers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.answers li { display: flex; justify-content: space-between; gap: var(--gap); font-size: 14px; }
+.answers li b { text-align: right; font-weight: 600; }
+.answer--bad b { color: var(--danger); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.badge { flex-shrink: 0; font-size: 12px; padding: 3px 8px; border-radius: 10px; background: var(--surface); white-space: nowrap; }
+.badge--screened { background: rgba(0, 119, 255, 0.14); color: var(--accent); }
+.badge--invited { background: rgba(42, 157, 75, 0.14); color: var(--success); }
+.badge--rejected { background: rgba(230, 70, 70, 0.12); color: var(--danger); }
+
+.compare { overflow-x: auto; margin: 0 -16px; padding: 0 16px; }
+.compare table { border-collapse: collapse; font-size: 13px; min-width: 100%; }
+.compare th, .compare td { padding: 8px; border-bottom: 1px solid var(--surface); text-align: left; vertical-align: top; min-width: 110px; }
+.compare tbody th { font-weight: 400; color: var(--muted); min-width: 130px; max-width: 160px; position: sticky; left: 0; background: var(--sticky-bg, Canvas); }
+.compare thead th { font-weight: 600; }
+.cell--bad { color: var(--danger); }
+.status-select { font: inherit; font-size: 13px; padding: 4px; border-radius: 8px; border: 1px solid var(--surface); background: transparent; color: inherit; }

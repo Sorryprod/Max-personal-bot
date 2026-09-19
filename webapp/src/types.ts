@@ -42,3 +42,34 @@ export interface Me {
   question_templates: QuestionDraft[];
   max_questions: number;
 }
+
+export type ApplicationStatus = 'screened' | 'invited' | 'reserve' | 'rejected';
+
+export interface AnswerView {
+  question_id: number;
+  value: string;
+  display: string;
+  passed: boolean;
+}
+
+export interface Slot {
+  id: number;
+  starts_at: string;
+  is_chosen: boolean;
+}
+
+export interface Application {
+  id: number;
+  status: ApplicationStatus;
+  screening_failed: boolean;
+  created_at: string | null;
+  name: string;
+  contact: string;
+  answers: AnswerView[];
+  slots: Slot[];
+}
+
+export interface VacancyApplications {
+  vacancy: Vacancy;
+  applications: Application[];
+}

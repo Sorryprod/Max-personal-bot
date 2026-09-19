@@ -12,7 +12,7 @@ OWNER = 2002
 @pytest.fixture
 async def demo(session_factory):
     async with session_factory() as session, session.begin():
-        await seed(session, owner_max_id=OWNER)
+        await seed(session, owner_max_id=OWNER, with_candidates=False)
 
 
 async def _payload(messenger, label: str) -> str:
@@ -113,7 +113,7 @@ async def test_unknown_or_closed_vacancy(demo, dispatcher, messenger):
 
 async def test_notification_to_fake_demo_employer_does_not_break(session_factory, dispatcher, messenger):
     async with session_factory() as session, session.begin():
-        await seed(session)  # владелец — вымышленный DEMO_EMPLOYER_ID
+        await seed(session, with_candidates=False)  # владелец — вымышленный DEMO_EMPLOYER_ID
     await dispatcher.handle(start(CANDIDATE, "demo-prodavec"))
     assert any(b.text == "Откликнуться" for b in buttons(messenger.sent[-1]))
     assert DEMO_EMPLOYER_ID < 0
