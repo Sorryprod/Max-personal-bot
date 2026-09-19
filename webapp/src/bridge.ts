@@ -31,7 +31,32 @@ declare global {
 
 export const webApp: WebApp | undefined = window.WebApp;
 export const initData: string = webApp?.initData ?? '';
-export const startParam: string = webApp?.initDataUnsafe?.start_param ?? '';
+
+// Запасной вход по ссылке из бота: /app/?start=...#login=<токен>.
+// Токен убираем из адресной строки и держим в sessionStorage на время вкладки.
+function readLoginToken(): string {
+  const match = /(?:^|&)login=([^&]+)/.exec(window.location.hash.slice(1));
+  if (match) {
+    const token = decodeURIComponent(match[1]);
+    try {
+      sessionStorage.setItem('login-token', token);
+    } catch {
+      /* без sessionStorage токен живёт до перезагрузки */
+    }
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    return token;
+  }
+  try {
+    return sessionStorage.getItem('login-token') ?? '';
+  } catch {
+    return '';
+  }
+}
+
+export const loginToken: string = initData ? '' : readLoginToken();
+export const isAuthorized = Boolean(initData || loginToken);
+export const startParam: string =
+  webApp?.initDataUnsafe?.start_param || new URLSearchParams(window.location.search).get('start') || '';
 
 export function closeApp(): void {
   try {

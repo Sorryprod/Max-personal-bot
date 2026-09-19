@@ -161,7 +161,7 @@ async def create_vacancy(request: Request, body: VacancyIn, user: WebAppUser = D
             texts.VACANCY_PUBLISHED.format(position=escape(vacancy.position), link=escape(link)),
             [
                 [Button(texts.COPY_LINK_BUTTON, link, ButtonKind.clipboard)],
-                [Button(texts.EMP_CABINET_BUTTON, kind=ButtonKind.app)],
+                [request.app.state.links.button(texts.EMP_CABINET_BUTTON, user.id, user.full_name)],
             ],
         )
         return vacancy_out(request, vacancy, with_questions=True)

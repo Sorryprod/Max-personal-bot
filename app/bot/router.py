@@ -14,6 +14,7 @@ from app.bot.handlers import candidate, common, employer
 from app.bot.states import Ctx, load_state
 from app.db.models import ProcessedUpdate
 from app.messaging import CallbackAnswer, EventKind, IncomingEvent, Messenger, Outbox, flush_outbox
+from app.services.applinks import AppLinks
 
 log = logging.getLogger(__name__)
 
@@ -81,9 +82,12 @@ async def _route_callback(ctx: Ctx) -> None:
 
 
 class Dispatcher:
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession], messenger: Messenger) -> None:
+    def __init__(
+        self, session_factory: async_sessionmaker[AsyncSession], messenger: Messenger, links: AppLinks
+    ) -> None:
         self._sf = session_factory
         self._messenger = messenger
+        self._links = links
 
     async def handle(self, event: IncomingEvent) -> None:
         log.info("Событие %s от %s, payload=%r", event.kind, event.user_id, event.payload)
@@ -94,7 +98,7 @@ class Dispatcher:
                     log.info("Повторная доставка %s — пропускаем", event.key)
                     return
                 state = await load_state(session, event.user_id)
-                await route(Ctx(session, event, state, outbox, self._messenger))
+                await route(Ctx(session, event, state, outbox, self._messenger, self._links))
         except (OperationalError, InterfaceError, OSError):
             raise  # БД недоступна — пусть платформа доставит апдейт повторно
         except Exception as exc:  # noqa: BLE001 — пользователь не должен видеть трейсбек

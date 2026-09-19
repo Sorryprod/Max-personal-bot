@@ -1,4 +1,4 @@
-import { initData } from './bridge';
+import { initData, loginToken } from './bridge';
 
 export class ApiError extends Error {
   constructor(
@@ -15,7 +15,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   try {
     resp = await fetch(`/api${path}`, {
       method,
-      headers: { 'Content-Type': 'application/json', 'X-Init-Data': initData },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(initData ? { 'X-Init-Data': initData } : { 'X-Login-Token': loginToken }),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {

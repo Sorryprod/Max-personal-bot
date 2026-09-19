@@ -5,8 +5,13 @@
   data_check_string = отсортированные по ключу пары key=value (без hash), через "\\n"
   hash == hex(HMAC_SHA256(key=secret_key, msg=data_check_string))
 user_id берётся только из проверенной подписи, а не из тела запроса.
+
+Запасной вход (WEBAPP_OPEN_MODE=link, пока URL мини-приложения не прописан в настройках бота):
+бот присылает в личный чат ссылку с токеном, подписанным сервером (HMAC от токена бота,
+отдельный ключ), с ограниченным сроком жизни. Страница передаёт его в заголовке X-Login-Token.
 """
 
+import base64
 import hashlib
 import hmac
 import json
@@ -83,13 +88,53 @@ def validate_init_data(init_data: str, bot_token: str, ttl_seconds: int, now: fl
         raise InitDataError("нет данных пользователя") from exc
 
 
-async def current_user(request: Request, x_init_data: str | None = Header(default=None)) -> WebAppUser:
+def _login_key(bot_token: str) -> bytes:
+    return hmac.new(b"LoginLink", bot_token.encode(), hashlib.sha256).digest()
+
+
+def issue_login_token(user_id: int, name: str, bot_token: str, ttl_seconds: int, now: float | None = None) -> str:
+    now = time.time() if now is None else now
+    payload = json.dumps({"id": user_id, "name": name[:100], "exp": int(now + ttl_seconds)},
+                         ensure_ascii=False, separators=(",", ":")).encode()
+    body = base64.urlsafe_b64encode(payload).rstrip(b"=").decode()
+    signature = hmac.new(_login_key(bot_token), body.encode(), hashlib.sha256).hexdigest()
+    return f"{body}.{signature}"
+
+
+def validate_login_token(token: str, bot_token: str, now: float | None = None) -> WebAppUser:
+    body, _, signature = token.strip().partition(".")
+    expected = hmac.new(_login_key(bot_token), body.encode(), hashlib.sha256).hexdigest()
+    if not body or not hmac.compare_digest(expected, signature):
+        raise InitDataError("подпись токена не совпадает")
+    try:
+        data = json.loads(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)))
+        user = WebAppUser(id=int(data["id"]), first_name=str(data.get("name") or ""))
+        expires = int(data["exp"])
+    except (ValueError, KeyError, TypeError) as exc:
+        raise InitDataError("некорректный токен") from exc
+    if (time.time() if now is None else now) > expires:
+        raise InitDataError("токен устарел")
+    return user
+
+
+async def current_user(
+    request: Request,
+    x_init_data: str | None = Header(default=None),
+    x_login_token: str | None = Header(default=None),
+) -> WebAppUser:
     settings = request.app.state.settings
     try:
-        return validate_init_data(x_init_data or "", settings.bot_token, settings.init_data_ttl_seconds)
+        if x_init_data:
+            return validate_init_data(x_init_data, settings.bot_token, settings.init_data_ttl_seconds)
+        if x_login_token:
+            return validate_login_token(x_login_token, settings.bot_token)
+        raise InitDataError("нет ни initData, ни токена входа")
     except InitDataError as exc:
-        log.warning("initData отклонены: %s", exc)
+        log.warning("Вход в мини-приложение отклонён: %s", exc)
         raise HTTPException(
             status_code=401,
-            detail={"code": "unauthorized", "message": "Откройте приложение из бота в MAX"},
+            detail={
+                "code": "unauthorized",
+                "message": "Ссылка устарела. Откройте приложение заново из чата с ботом.",
+            },
         ) from exc

@@ -3,12 +3,13 @@
 from html import escape
 
 from app.db.models import Application, Candidate, Vacancy
-from app.messaging import Button, ButtonKind, Outbox
+from app.messaging import Outbox
+from app.services.applinks import AppLinks
 from app.services.screening import display_value
 
 
 def notify_new_application(
-    outbox: Outbox, vacancy: Vacancy, application: Application, candidate: Candidate
+    outbox: Outbox, links: AppLinks, vacancy: Vacancy, application: Application, candidate: Candidate
 ) -> None:
     answers = {a.question_id: a.value for a in application.answers}
     lines = [
@@ -24,5 +25,6 @@ def notify_new_application(
     outbox.send(
         vacancy.employer.max_user_id,
         "\n".join(lines),
-        [[Button("Открыть кандидатов", f"vacancy-{vacancy.id}", ButtonKind.app)]],
+        [[links.button("Открыть кандидатов", vacancy.employer.max_user_id, vacancy.employer.name,
+                       f"vacancy-{vacancy.id}")]],
     )

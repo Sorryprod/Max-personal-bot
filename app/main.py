@@ -17,6 +17,7 @@ from app.max import webhook
 from app.max.client import MaxApiError, MaxClient
 from app.max.poller import run_polling
 from app.max.updates import UPDATE_TYPES
+from app.services.applinks import AppLinks
 
 log = logging.getLogger(__name__)
 
@@ -48,13 +49,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     app.state.session_factory = make_session_factory(engine)
     app.state.messenger = client
-    app.state.dispatcher = Dispatcher(app.state.session_factory, client)
+    app.state.links = AppLinks(settings, client)
+    app.state.dispatcher = Dispatcher(app.state.session_factory, client, app.state.links)
 
     poller: asyncio.Task[None] | None = None
     try:
         if not client.bot_username:
             client.bot_username = (await client.get_me()).get("username", "")
-        log.info("Бот @%s, режим апдейтов: %s", client.bot_username, settings.updates_mode)
+        log.info(
+            "Бот @%s, апдейты: %s, мини-приложение: %s",
+            client.bot_username, settings.updates_mode, settings.webapp_open_mode,
+        )
         await _setup_updates(settings, client)
     except MaxApiError:
         log.exception("MAX API недоступен при старте — проверьте BOT_TOKEN и сеть")

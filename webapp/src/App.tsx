@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@maxhub/max-ui';
 import { api, ApiError } from './api';
-import { bindBackButton, closeApp, initData, startParam } from './bridge';
+import { bindBackButton, closeApp, isAuthorized, startParam } from './bridge';
 import { EmptyState, ErrorState, Loading } from './components/States';
 import { VacancyCreated } from './screens/VacancyCreated';
 import { VacancyDetail } from './screens/VacancyDetail';
@@ -33,12 +33,12 @@ export function App() {
     api.get<Me>('/me').then(setMe).catch((e: ApiError) => setError(e.message));
   };
   useEffect(() => {
-    if (initData) load();
+    if (isAuthorized) load();
   }, []);
 
   useEffect(() => bindBackButton(screen.name === 'list' ? null : () => setScreen({ name: 'list' })), [screen]);
 
-  if (!initData) {
+  if (!isAuthorized) {
     return <div className="page"><ErrorState message="Откройте это приложение из бота в MAX." /></div>;
   }
   if (error) return <div className="page"><ErrorState message={error} onRetry={load} /></div>;

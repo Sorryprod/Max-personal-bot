@@ -255,7 +255,7 @@ async def _set_contact(ctx: Ctx) -> None:
 
 async def _finish(ctx: Ctx, vacancy: Vacancy, application: Application, candidate: Candidate) -> None:
     await screening.submit_application(ctx.session, vacancy, application, candidate)
-    notifications.notify_new_application(ctx.outbox, vacancy, application, candidate)
+    notifications.notify_new_application(ctx.outbox, ctx.links, vacancy, application, candidate)
     ctx.set_step(Step.idle)
     ctx.reply(
         texts.APPLICATION_SENT.format(position=escape(vacancy.position)),

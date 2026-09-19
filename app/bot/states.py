@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import DialogState
 from app.messaging import CallbackAnswer, IncomingEvent, Keyboard, Messenger, Outbox
+from app.services.applinks import AppLinks
 
 
 class Step(StrEnum):
@@ -42,12 +43,16 @@ class Ctx:
     state: DialogState
     outbox: Outbox
     messenger: Messenger
+    links: AppLinks
     # Ответ на нажатие кнопки; обработчик может заменить или обнулить его.
     answer: CallbackAnswer | None = field(default=None)
 
     @property
     def user_id(self) -> int:
         return self.event.user_id
+
+    def app_button(self, label: str, start_param: str = ""):
+        return self.links.button(label, self.user_id, self.event.user_name, start_param)
 
     def reply(self, text: str, keyboard: Keyboard | None = None) -> None:
         self.outbox.send(self.user_id, text, keyboard)

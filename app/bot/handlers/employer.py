@@ -4,7 +4,7 @@ from html import escape
 
 from app.bot import texts
 from app.bot.states import Ctx, Step
-from app.messaging import Button, ButtonKind, CallbackAnswer, Keyboard
+from app.messaging import Button, CallbackAnswer, Keyboard
 from app.services import vacancies
 
 TEXT_MIN, TEXT_MAX = 2, 100
@@ -17,8 +17,8 @@ def _clean(raw: str | None) -> str | None:
 
 def menu_keyboard(ctx: Ctx) -> Keyboard:
     return [
-        [Button(texts.EMP_CREATE_BUTTON, ctx.messenger.app_link("new"), ButtonKind.link)],
-        [Button(texts.EMP_CABINET_BUTTON, kind=ButtonKind.app)],
+        [ctx.app_button(texts.EMP_CREATE_BUTTON, "new")],
+        [ctx.app_button(texts.EMP_CABINET_BUTTON)],
         [Button(texts.EMP_EDIT_BUTTON, "emp:edit")],
     ]
 

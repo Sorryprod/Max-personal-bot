@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     bot_username: str = ""
 
     init_data_ttl_seconds: int = 24 * 3600
+    # native — кнопки открывают мини-приложение MAX (URL прописан в настройках бота);
+    # link — запасной вход: ссылка на PUBLIC_URL/app/ с подписанным токеном.
+    webapp_open_mode: Literal["native", "link"] = "native"
+    login_link_ttl_seconds: int = 24 * 3600
     webapp_dist: Path = BASE_DIR / "webapp" / "dist"
     log_level: str = "INFO"
 
@@ -36,6 +40,8 @@ class Settings(BaseSettings):
                 raise ValueError("UPDATES_MODE=webhook требует PUBLIC_URL вида https://...")
             if not self.webhook_secret:
                 raise ValueError("UPDATES_MODE=webhook требует WEBHOOK_SECRET")
+        if self.webapp_open_mode == "link" and not self.public_url.startswith("https://"):
+            raise ValueError("WEBAPP_OPEN_MODE=link требует PUBLIC_URL вида https://...")
         self.public_url = self.public_url.rstrip("/")
         return self
 
