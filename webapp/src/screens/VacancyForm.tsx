@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react';
-import { Button, Input, Switch, Typography } from '@maxhub/max-ui';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Button, Input, Switch } from '@maxhub/max-ui';
+import { CircleAlert, Plus, Trash2, X } from 'lucide-react';
 import { api, ApiError } from '../api';
 import { Banner } from '../components/States';
+import { ICON } from '../components/ui';
 import { load, remove, save } from '../storage';
 import type { Me, QuestionDraft, QuestionType, Vacancy, VacancyDraft } from '../types';
 
 const DRAFT_KEY = 'vacancy-draft';
 const POSITIONS = ['Повар', 'Продавец', 'Официант', 'Курьер', 'Уборщик', 'Бариста', 'Кассир'];
 const SCHEDULES = ['2/2', '5/2', '3/3', 'Гибкий график'];
-const TYPE_LABELS: Record<QuestionType, string> = { yes_no: 'Да / Нет', choice: 'Варианты', text: 'Свободный ответ' };
+const TYPE_LABELS: Record<QuestionType, string> = { yes_no: 'Да / нет', choice: 'Варианты', text: 'Свой ответ' };
 
 const EMPTY: VacancyDraft = { position: '', schedule: '', salary_from: '', salary_to: '', address: '', questions: [] };
 
@@ -17,9 +19,9 @@ type Errors = Partial<Record<keyof VacancyDraft | `q${number}`, string>>;
 function validate(d: VacancyDraft): Errors {
   const e: Errors = {};
   const len = (s: string) => s.trim().length;
-  if (len(d.position) < 2 || len(d.position) > 100) e.position = 'Укажите должность (2–100 символов)';
-  if (len(d.schedule) < 2 || len(d.schedule) > 100) e.schedule = 'Укажите график (2–100 символов)';
-  if (len(d.address) < 5 || len(d.address) > 200) e.address = 'Укажите адрес (5–200 символов)';
+  if (len(d.position) < 2 || len(d.position) > 100) e.position = 'Укажите должность: от 2 до 100 символов';
+  if (len(d.schedule) < 2 || len(d.schedule) > 100) e.schedule = 'Укажите график: от 2 до 100 символов';
+  if (len(d.address) < 5 || len(d.address) > 200) e.address = 'Укажите адрес: от 5 до 200 символов';
   const from = d.salary_from ? Number(d.salary_from) : null;
   const to = d.salary_to ? Number(d.salary_to) : null;
   for (const [key, v] of [['salary_from', from], ['salary_to', to]] as const) {
@@ -64,13 +66,18 @@ export function VacancyForm({ me, onCreated }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
-  useEffect(() => save(DRAFT_KEY, draft), [draft]);
+  useEffect(() => {
+    save(DRAFT_KEY, draft);
+  }, [draft]);
 
   const set = <K extends keyof VacancyDraft>(key: K, value: VacancyDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
   const setQuestion = (i: number, patch: Partial<QuestionDraft>) =>
     set('questions', draft.questions.map((q, j) => (j === i ? { ...q, ...patch } : q)));
+  const addQuestion = (q: QuestionDraft) => set('questions', [...draft.questions, q]);
   const full = draft.questions.length >= me.max_questions;
+  const templates = me.question_templates.filter((t) => !draft.questions.some((q) => q.text === t.text));
+  const hasDraft = JSON.stringify(draft) !== JSON.stringify(EMPTY);
 
   const submit = async () => {
     const found = validate(draft);
@@ -94,88 +101,108 @@ export function VacancyForm({ me, onCreated }: Props) {
 
   return (
     <div className="page">
-      <Typography.Title>Новая вакансия</Typography.Title>
+      <header className="stack-s">
+        <h1 className="h1">Новая вакансия</h1>
+        {hasDraft && (
+          <div className="with-action">
+            <span className="small faint">Черновик сохраняется автоматически</span>
+            <button type="button" className="icon-button small" onClick={() => { setDraft(EMPTY); setErrors({}); }}>
+              Очистить
+            </button>
+          </div>
+        )}
+      </header>
 
-      <Field label="Должность" error={errors.position}>
-        <Input value={draft.position} placeholder="Например, повар" onChange={(e) => set('position', e.target.value)} />
-        <Chips items={POSITIONS} onPick={(v) => set('position', v)} />
-      </Field>
-
-      <Field label="График" error={errors.schedule}>
-        <Input value={draft.schedule} placeholder="Например, 2/2 с 9 до 21" onChange={(e) => set('schedule', e.target.value)} />
-        <Chips items={SCHEDULES} onPick={(v) => set('schedule', v)} />
-      </Field>
-
-      <div className="row">
-        <Field label="Зарплата от, ₽" error={errors.salary_from}>
-          <Input inputMode="numeric" value={draft.salary_from} placeholder="40000"
-            onChange={(e) => set('salary_from', e.target.value.replace(/\D/g, ''))} />
+      <section className="card">
+        <Field label="Должность" error={errors.position}>
+          <Input value={draft.position} placeholder="Например, повар" onChange={(e) => set('position', e.target.value)} />
+          <Chips items={POSITIONS} value={draft.position} onPick={(v) => set('position', v)} />
         </Field>
-        <Field label="до, ₽" error={errors.salary_to}>
-          <Input inputMode="numeric" value={draft.salary_to} placeholder="60000"
-            onChange={(e) => set('salary_to', e.target.value.replace(/\D/g, ''))} />
+        <Field label="График" error={errors.schedule}>
+          <Input value={draft.schedule} placeholder="Например, 2/2 с 9 до 21" onChange={(e) => set('schedule', e.target.value)} />
+          <Chips items={SCHEDULES} value={draft.schedule} onPick={(v) => set('schedule', v)} />
         </Field>
-      </div>
+      </section>
 
-      <Field label="Адрес" error={errors.address}>
-        <Input value={draft.address} placeholder={`${me.employer?.city ?? 'Город'}, улица, дом`}
-          onChange={(e) => set('address', e.target.value)} />
-      </Field>
+      <section className="card">
+        <div className="row">
+          <Field label="Зарплата от, ₽" error={errors.salary_from}>
+            <Input inputMode="numeric" value={draft.salary_from} placeholder="40 000"
+              onChange={(e) => set('salary_from', e.target.value.replace(/\D/g, ''))} />
+          </Field>
+          <Field label="до, ₽" error={errors.salary_to}>
+            <Input inputMode="numeric" value={draft.salary_to} placeholder="60 000"
+              onChange={(e) => set('salary_to', e.target.value.replace(/\D/g, ''))} />
+          </Field>
+        </div>
+        <Field label="Адрес" error={errors.address}>
+          <Input value={draft.address} placeholder={`${me.employer?.city ?? 'Город'}, улица, дом`}
+            onChange={(e) => set('address', e.target.value)} />
+        </Field>
+      </section>
 
-      <div className="section">
-        <Typography.Headline>Отсеивающие вопросы</Typography.Headline>
-        <Typography.Body className="muted">
-          До {me.max_questions} вопросов. Кандидат ответит кнопками в чате, а вы сразу увидите, кто не подходит.
-        </Typography.Body>
+      <section className="stack">
+        <div className="stack-s">
+          <h2 className="h2">Вопросы кандидатам</h2>
+          <p className="small muted">
+            До {me.max_questions} вопросов. Кандидат отвечает кнопками в чате, а вы сразу видите, кто не подходит.
+          </p>
+        </div>
 
         {draft.questions.map((q, i) => (
-          <QuestionEditor key={i} q={q} error={errors[`q${i}`]}
+          <QuestionEditor key={i} index={i} q={q} error={errors[`q${i}`]}
             onChange={(patch) => setQuestion(i, patch)}
             onRemove={() => set('questions', draft.questions.filter((_, j) => j !== i))} />
         ))}
 
         {!full && (
-          <>
-            <div className="chips">
-              {me.question_templates
-                .filter((t) => !draft.questions.some((q) => q.text === t.text))
-                .map((t) => (
-                  <button key={t.text} type="button" className="chip" onClick={() => set('questions', [...draft.questions, { ...t }])}>
-                    + {t.text}
-                  </button>
-                ))}
-            </div>
-            <Button variant="secondary" stretched onClick={() =>
-              set('questions', [...draft.questions, { text: '', qtype: 'yes_no', options: [], is_blocking: false, accepted: [] }])}>
-              + Свой вопрос
-            </Button>
-          </>
+          <div className="stack">
+            {templates.slice(0, 4).map((t) => (
+              <button key={t.text} type="button" className="template" onClick={() => addQuestion({ ...t })}>
+                <Plus {...ICON} />
+                <span>{t.text}</span>
+                <span className="template__type">{t.is_blocking ? 'отсеивает' : TYPE_LABELS[t.qtype]}</span>
+              </button>
+            ))}
+            <button type="button" className="add-link"
+              onClick={() => addQuestion({ text: '', qtype: 'yes_no', options: [], is_blocking: false, accepted: [] })}>
+              <Plus {...ICON} />
+              Свой вопрос
+            </button>
+          </div>
         )}
-      </div>
+      </section>
 
-      {serverError && <Banner kind="error">{serverError}</Banner>}
-      <Button stretched size="large" loading={submitting} disabled={submitting} onClick={submit}>
-        Опубликовать
-      </Button>
+      <div className="bottom-bar">
+        {serverError && <Banner>{serverError}</Banner>}
+        <Button size="large" stretched loading={submitting} disabled={submitting} onClick={submit}>
+          Опубликовать
+        </Button>
+      </div>
     </div>
   );
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
   return (
     <label className="field">
-      <span className="field__label">{label}</span>
+      <span className="label">{label}</span>
       {children}
-      {error && <span className="field__error">{error}</span>}
+      {error && (
+        <span className="field__error">
+          <CircleAlert size={14} strokeWidth={2} />
+          {error}
+        </span>
+      )}
     </label>
   );
 }
 
-function Chips({ items, onPick }: { items: string[]; onPick: (v: string) => void }) {
+function Chips({ items, value, onPick }: { items: string[]; value: string; onPick: (v: string) => void }) {
   return (
     <div className="chips">
       {items.map((item) => (
-        <button key={item} type="button" className="chip" onClick={() => onPick(item)}>
+        <button key={item} type="button" className={`chip ${value === item ? 'chip--on' : ''}`} onClick={() => onPick(item)}>
           {item}
         </button>
       ))}
@@ -184,29 +211,38 @@ function Chips({ items, onPick }: { items: string[]; onPick: (v: string) => void
 }
 
 interface EditorProps {
+  index: number;
   q: QuestionDraft;
   error?: string;
   onChange: (patch: Partial<QuestionDraft>) => void;
   onRemove: () => void;
 }
 
-function QuestionEditor({ q, error, onChange, onRemove }: EditorProps) {
+function QuestionEditor({ index, q, error, onChange, onRemove }: EditorProps) {
   const answers = q.qtype === 'yes_no' ? [['yes', 'Да'], ['no', 'Нет']] : q.options.filter(Boolean).map((o) => [o, o]);
   const toggleAccepted = (value: string) =>
     onChange({ accepted: q.accepted.includes(value) ? q.accepted.filter((a) => a !== value) : [...q.accepted, value] });
+  const changeType = (t: QuestionType) =>
+    onChange({
+      qtype: t,
+      accepted: [],
+      is_blocking: t === 'text' ? false : q.is_blocking,
+      options: t === 'choice' && q.options.length < 2 ? ['', ''] : q.options,
+    });
 
   return (
     <div className="card">
-      <div className="card__head">
-        <Input value={q.text} placeholder="Текст вопроса" onChange={(e) => onChange({ text: e.target.value })} />
-        <button type="button" className="icon-btn" aria-label="Удалить вопрос" onClick={onRemove}>✕</button>
+      <div className="with-action">
+        <span className="label">Вопрос {index + 1}</span>
+        <button type="button" className="icon-button icon-button--danger" aria-label="Удалить вопрос" onClick={onRemove}>
+          <Trash2 {...ICON} />
+        </button>
       </div>
+      <Input value={q.text} placeholder="Текст вопроса" onChange={(e) => onChange({ text: e.target.value })} />
 
-      <div className="segmented">
+      <div className="segmented" role="group" aria-label="Тип ответа">
         {(Object.keys(TYPE_LABELS) as QuestionType[]).map((t) => (
-          <button key={t} type="button" className={`chip ${q.qtype === t ? 'chip--on' : ''}`}
-            onClick={() => onChange({ qtype: t, accepted: [], is_blocking: t === 'text' ? false : q.is_blocking,
-              options: t === 'choice' && q.options.length < 2 ? ['', ''] : q.options })}>
+          <button key={t} type="button" aria-pressed={q.qtype === t} onClick={() => changeType(t)}>
             {TYPE_LABELS[t]}
           </button>
         ))}
@@ -215,18 +251,28 @@ function QuestionEditor({ q, error, onChange, onRemove }: EditorProps) {
       {q.qtype === 'choice' && (
         <div className="options">
           {q.options.map((opt, i) => (
-            <div key={i} className="card__head">
+            <div key={i} className="with-action">
               <Input value={opt} placeholder={`Вариант ${i + 1}`}
-                onChange={(e) => onChange({ options: q.options.map((o, j) => (j === i ? e.target.value : o)),
-                  accepted: q.accepted.filter((a) => a !== opt) })} />
+                onChange={(e) => onChange({
+                  options: q.options.map((o, j) => (j === i ? e.target.value : o)),
+                  accepted: q.accepted.filter((a) => a !== opt),
+                })} />
               {q.options.length > 2 && (
-                <button type="button" className="icon-btn" aria-label="Удалить вариант"
-                  onClick={() => onChange({ options: q.options.filter((_, j) => j !== i), accepted: q.accepted.filter((a) => a !== opt) })}>✕</button>
+                <button type="button" className="icon-button" aria-label="Удалить вариант"
+                  onClick={() => onChange({
+                    options: q.options.filter((_, j) => j !== i),
+                    accepted: q.accepted.filter((a) => a !== opt),
+                  })}>
+                  <X {...ICON} />
+                </button>
               )}
             </div>
           ))}
           {q.options.length < 6 && (
-            <button type="button" className="chip" onClick={() => onChange({ options: [...q.options, ''] })}>+ Вариант</button>
+            <button type="button" className="add-link" onClick={() => onChange({ options: [...q.options, ''] })}>
+              <Plus {...ICON} />
+              Вариант
+            </button>
           )}
         </div>
       )}
@@ -235,24 +281,32 @@ function QuestionEditor({ q, error, onChange, onRemove }: EditorProps) {
         <label className="switch-row">
           <span>Отсеивающий вопрос</span>
           <Switch checked={q.is_blocking}
-            onChange={(e) => onChange({ is_blocking: e.target.checked, accepted: e.target.checked && q.qtype === 'yes_no' ? ['yes'] : [] })} />
+            onChange={(e) => onChange({
+              is_blocking: e.target.checked,
+              accepted: e.target.checked && q.qtype === 'yes_no' ? ['yes'] : [],
+            })} />
         </label>
       )}
 
       {q.is_blocking && (
-        <div>
-          <Typography.Body className="muted">Какие ответы подходят:</Typography.Body>
+        <div className="stack-s">
+          <span className="label">Подходящие ответы</span>
           <div className="chips">
             {answers.map(([value, label]) => (
-              <button key={value} type="button" className={`chip ${q.accepted.includes(value) ? 'chip--on' : ''}`}
-                onClick={() => toggleAccepted(value)}>
-                {q.accepted.includes(value) ? '✓ ' : ''}{label}
+              <button key={value} type="button" className={`chip ${q.accepted.includes(value!) ? 'chip--on' : ''}`}
+                onClick={() => toggleAccepted(value!)}>
+                {label}
               </button>
             ))}
           </div>
         </div>
       )}
-      {error && <span className="field__error">{error}</span>}
+      {error && (
+        <span className="field__error">
+          <CircleAlert size={14} strokeWidth={2} />
+          {error}
+        </span>
+      )}
     </div>
   );
 }

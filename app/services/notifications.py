@@ -13,15 +13,15 @@ def notify_new_application(
 ) -> None:
     answers = {a.question_id: a.value for a in application.answers}
     lines = [
-        f"🔔 <b>Новый отклик</b> на вакансию «{escape(vacancy.position)}»",
+        f"<b>Новый отклик</b> на вакансию «{escape(vacancy.position)}»",
         "",
         f"<b>{escape(candidate.name)}</b>, {escape(candidate.contact)}",
     ]
     for question in vacancy.questions:
         if question.id in answers:
-            lines.append(f"• {escape(question.text)} — {escape(display_value(question, answers[question.id]))}")
+            lines.append(f"{escape(question.text)} — <b>{escape(display_value(question, answers[question.id]))}</b>")
     if application.screening_failed:
-        lines += ["", "⚠️ Не прошёл отсеивающие вопросы"]
+        lines += ["", "<b>Внимание:</b> не прошёл отсеивающие вопросы"]
     outbox.send(
         vacancy.employer.max_user_id,
         "\n".join(lines),
@@ -38,7 +38,7 @@ def notify_status_changed(outbox: Outbox, application: Application) -> None:
     match application.status:
         case ApplicationStatus.reserve:
             text = (
-                f"📋 По вакансии «{position}» ({place}) вас добавили в резерв.\n\n"
+                f"По вакансии «{position}» ({place}) вас добавили в резерв.\n\n"
                 "Если место освободится, работодатель напишет вам здесь."
             )
         case ApplicationStatus.rejected:

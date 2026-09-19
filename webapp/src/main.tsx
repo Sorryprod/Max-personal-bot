@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MaxUI } from '@maxhub/max-ui';
+import '@fontsource-variable/onest/wght.css';
 import '@maxhub/max-ui/dist/styles.css';
 import './styles.css';
 import { App } from './App';
@@ -10,7 +11,7 @@ webApp?.ready?.();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MaxUI>
+    <MaxUI className="theme">
       <App />
     </MaxUI>
   </StrictMode>,

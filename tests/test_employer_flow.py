@@ -40,7 +40,7 @@ async def test_employer_registration_in_chat(dispatcher, messenger, session_fact
     menu = messenger.sent[-1]
     assert "Кафе «Ромашка»" in menu.text and "Губкин" in menu.text
     labels = [b.text for b in buttons(menu)]
-    assert "📝 Создать вакансию" in labels and "📋 Мои вакансии и кандидаты" in labels
+    assert "Создать вакансию" in labels and "Мои вакансии и кандидаты" in labels
     async with session_factory() as session:
         employer = await session.scalar(select(Employer))
     assert (employer.max_user_id, employer.place_name, employer.city) == (EMPLOYER, "Кафе «Ромашка»", "Губкин")

@@ -24,8 +24,8 @@ def vacancy_card(vacancy: Vacancy) -> str:
         f"<b>{escape(vacancy.position)}</b>",
         escape(place),
         "",
-        f"💰 {escape(salary_text(vacancy))}",
-        f"🕒 {escape(vacancy.schedule)}",
-        f"📍 {escape(vacancy.address)}",
+        f"<b>Зарплата:</b> {escape(salary_text(vacancy))}",
+        f"<b>График:</b> {escape(vacancy.schedule)}",
+        f"<b>Адрес:</b> {escape(vacancy.address)}",
     ]
     return "\n".join(lines)

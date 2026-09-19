@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@maxhub/max-ui';
+import { MessageCircle, Store } from 'lucide-react';
 import { api, ApiError } from './api';
 import { bindBackButton, closeApp, isAuthorized, startParam } from './bridge';
 import { EmptyState, ErrorState, Loading } from './components/States';
+import { TopBar } from './components/ui';
 import { VacancyCreated } from './screens/VacancyCreated';
 import { VacancyDetail } from './screens/VacancyDetail';
 import { VacancyForm } from './screens/VacancyForm';
@@ -36,10 +38,20 @@ export function App() {
     if (isAuthorized) load();
   }, []);
 
-  useEffect(() => bindBackButton(screen.name === 'list' ? null : () => setScreen({ name: 'list' })), [screen]);
+  const toList = () => setScreen({ name: 'list' });
+  useEffect(() => bindBackButton(screen.name === 'list' ? null : toList), [screen]);
+  useEffect(() => {
+    // Блочное тело: эффект не должен возвращать результат scrollTo как функцию очистки.
+    window.scrollTo(0, 0);
+  }, [screen.name]);
 
   if (!isAuthorized) {
-    return <div className="page"><ErrorState message="Откройте это приложение из бота в MAX." /></div>;
+    return (
+      <div className="page">
+        <EmptyState icon={MessageCircle} title="Откройте из чата с ботом"
+          hint="Приложение работает вместе с ботом: откройте его кнопкой в чате MAX." />
+      </div>
+    );
   }
   if (error) return <div className="page"><ErrorState message={error} onRetry={load} /></div>;
   if (!me) return <div className="page"><Loading /></div>;
@@ -47,37 +59,34 @@ export function App() {
     return (
       <div className="page">
         <EmptyState
-          icon="🏪"
+          icon={Store}
           title="Сначала расскажите о точке"
           hint="Вернитесь в чат с ботом, выберите «Я ищу сотрудников» и укажите название и город."
-          action={<Button onClick={closeApp}>Вернуться в чат</Button>}
+          actions={<Button onClick={closeApp}>Вернуться в чат</Button>}
         />
       </div>
     );
   }
 
-  const toList = () => setScreen({ name: 'list' });
-  // Видимая «Назад» дублирует системную: в некоторых клиентах BackButton может не поддерживаться.
-  const backBar = (
-    <div className="backbar">
-      <button type="button" className="chip" onClick={toList}>← Мои вакансии</button>
-    </div>
-  );
-
   switch (screen.name) {
     case 'new':
-      return <>{backBar}<VacancyForm me={me} onCreated={(vacancy) => setScreen({ name: 'created', vacancy })} /></>;
+      return (
+        <>
+          <TopBar onBack={toList} backLabel="Вакансии" />
+          <VacancyForm me={me} onCreated={(vacancy) => setScreen({ name: 'created', vacancy })} />
+        </>
+      );
     case 'created':
       return <VacancyCreated vacancy={screen.vacancy} onDone={toList} />;
     case 'vacancy':
-      return <>{backBar}<VacancyDetail id={screen.id} /></>;
-    default:
       return (
-        <VacancyList
-          me={me}
-          onCreate={() => setScreen({ name: 'new' })}
-          onOpen={(id) => setScreen({ name: 'vacancy', id })}
-        />
+        <>
+          <TopBar onBack={toList} backLabel="Вакансии" />
+          <VacancyDetail id={screen.id} />
+        </>
       );
+    default:
+      return <VacancyList me={me} onCreate={() => setScreen({ name: 'new' })}
+        onOpen={(id) => setScreen({ name: 'vacancy', id })} />;
   }
 }

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Typography } from '@maxhub/max-ui';
+import { Button } from '@maxhub/max-ui';
+import { Check, Clock, Copy, LayoutList, Link2, ListChecks, Lock, LockOpen, MapPin, Table2, Users, Wallet } from 'lucide-react';
 import { api, ApiError } from '../api';
 import { CandidateCard } from '../components/CandidateCard';
 import { CompareTable } from '../components/CompareTable';
 import { Banner, EmptyState, ErrorState, Loading } from '../components/States';
+import { ICON, Meta, Tag } from '../components/ui';
 import { copyText, salaryText } from '../format';
 import { FILTERS, type Filter } from '../statuses';
 import type { Application, ApplicationStatus, Vacancy, VacancyApplications } from '../types';
@@ -55,45 +57,53 @@ export function VacancyDetail({ id }: { id: number }) {
 
   return (
     <div className="page">
-      <div>
-        <Typography.Title>{vacancy.position}</Typography.Title>
-        <Typography.Body className="muted">
-          {salaryText(vacancy.salary_from, vacancy.salary_to)} · {vacancy.schedule}
-        </Typography.Body>
-        <Typography.Body className="muted">📍 {vacancy.address}</Typography.Body>
-      </div>
-      {vacancy.status === 'closed' && <Banner kind="error">Вакансия закрыта — ссылка не принимает новые отклики</Banner>}
+      <header className="stack">
+        <div className="stack-s">
+          {vacancy.status === 'closed' && <span><Tag>Закрыта</Tag></span>}
+          <h1 className="h1">{vacancy.position}</h1>
+        </div>
+        <div className="meta">
+          <Meta icon={Wallet}>{salaryText(vacancy.salary_from, vacancy.salary_to)}</Meta>
+          <Meta icon={Clock}>{vacancy.schedule}</Meta>
+          <Meta icon={MapPin}>{vacancy.address}</Meta>
+        </div>
+      </header>
 
-      <div className="section">
-        <Typography.Headline>Кандидаты</Typography.Headline>
+      <section className="stack">
+        <h2 className="h2">Кандидаты</h2>
         {apps.length === 0 ? (
-          <EmptyState
-            icon="👥"
-            title="Откликов пока нет"
-            hint="Перешлите ссылку-приглашение в городские чаты — отклики появятся здесь, а я пришлю уведомление."
-            action={<CopyLink link={vacancy.invite_link} />}
-          />
+          <div className="card">
+            <EmptyState
+              icon={Users}
+              title="Откликов пока нет"
+              hint="Перешлите ссылку-приглашение в городские чаты — отклики появятся здесь, а бот пришлёт уведомление."
+              actions={<CopyLink link={vacancy.invite_link} />}
+            />
+          </div>
         ) : (
           <>
-            <div className="chips">
+            <div className="chips chips--scroll" role="tablist">
               {FILTERS.filter((f) => f.key === 'all' || counts[f.key]).map((f) => (
-                <button key={f.key} type="button" className={`chip ${activeFilter === f.key ? 'chip--on' : ''}`}
-                  onClick={() => setFilter(f.key)}>
-                  {f.label} · {counts[f.key] ?? 0}
+                <button key={f.key} type="button" role="tab" aria-selected={activeFilter === f.key}
+                  className={`chip ${activeFilter === f.key ? 'chip--on' : ''}`} onClick={() => setFilter(f.key)}>
+                  {f.label}
+                  <span className="chip__count">{counts[f.key] ?? 0}</span>
                 </button>
               ))}
             </div>
-            <div className="segmented">
-              <button type="button" className={`chip ${view === 'cards' ? 'chip--on' : ''}`} onClick={() => setView('cards')}>
+            <div className="segmented" role="group" aria-label="Вид">
+              <button type="button" aria-pressed={view === 'cards'} onClick={() => setView('cards')}>
+                <LayoutList size={16} strokeWidth={2} />
                 Карточки
               </button>
-              <button type="button" className={`chip ${view === 'compare' ? 'chip--on' : ''}`} onClick={() => setView('compare')}>
-                Сравнить
+              <button type="button" aria-pressed={view === 'compare'} onClick={() => setView('compare')}>
+                <Table2 size={16} strokeWidth={2} />
+                Сравнение
               </button>
             </div>
-            {actionError && <Banner kind="error">{actionError}</Banner>}
+            {actionError && <Banner>{actionError}</Banner>}
             {visible.length === 0 ? (
-              <Typography.Body className="muted">В этой группе никого нет.</Typography.Body>
+              <p className="text muted">В этой группе никого нет.</p>
             ) : view === 'compare' ? (
               <CompareTable apps={visible} questions={questions} busyId={busyId} onStatus={changeStatus} />
             ) : (
@@ -104,7 +114,7 @@ export function VacancyDetail({ id }: { id: number }) {
             )}
           </>
         )}
-      </div>
+      </section>
 
       <VacancySettings vacancy={vacancy} onChange={(v) => setData((d) => d && { ...d, vacancy: v })} />
     </div>
@@ -114,8 +124,9 @@ export function VacancyDetail({ id }: { id: number }) {
 function CopyLink({ link }: { link: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <Button variant="secondary" stretched onClick={async () => setCopied(await copyText(link))}>
-      {copied ? 'Скопировано ✓' : 'Скопировать ссылку'}
+    <Button variant="secondary" stretched iconBefore={copied ? <Check {...ICON} /> : <Copy {...ICON} />}
+      onClick={async () => setCopied(await copyText(link))}>
+      {copied ? 'Ссылка скопирована' : 'Скопировать ссылку'}
     </Button>
   );
 }
@@ -123,13 +134,13 @@ function CopyLink({ link }: { link: string }) {
 function VacancySettings({ vacancy, onChange }: { vacancy: Vacancy; onChange: (v: Vacancy) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const active = vacancy.status === 'active';
 
   const toggle = async () => {
     setBusy(true);
     setError(null);
     try {
-      const status = vacancy.status === 'active' ? 'closed' : 'active';
-      onChange(await api.patch<Vacancy>(`/vacancies/${vacancy.id}`, { status }));
+      onChange(await api.patch<Vacancy>(`/vacancies/${vacancy.id}`, { status: active ? 'closed' : 'active' }));
     } catch (e) {
       setError((e as ApiError).message);
     } finally {
@@ -138,23 +149,38 @@ function VacancySettings({ vacancy, onChange }: { vacancy: Vacancy; onChange: (v
   };
 
   return (
-    <div className="section">
-      <Typography.Headline>Ссылка для кандидатов</Typography.Headline>
-      <div className="link-box">{vacancy.invite_link}</div>
-      <CopyLink link={vacancy.invite_link} />
+    <section className="stack">
+      <h2 className="h2">О вакансии</h2>
+      <div className="card">
+        <span className="label">Ссылка для кандидатов</span>
+        <div className="link-box">
+          <Link2 {...ICON} />
+          <span className="link-box__url">{vacancy.invite_link}</span>
+        </div>
+        <CopyLink link={vacancy.invite_link} />
+      </div>
       {vacancy.questions && vacancy.questions.length > 0 && (
-        <>
-          <Typography.Headline>Вопросы кандидатам</Typography.Headline>
-          {vacancy.questions.map((q) => (
-            <Typography.Body key={q.id}>• {q.text}{q.is_blocking ? ' (отсеивающий)' : ''}</Typography.Body>
-          ))}
-        </>
+        <div className="card">
+          <span className="label">Вопросы кандидатам</span>
+          <ul className="q-list">
+            {vacancy.questions.map((q) => (
+              <li key={q.id}>
+                <ListChecks size={16} strokeWidth={2} />
+                <span>
+                  {q.text}
+                  {q.is_blocking && <span className="faint"> · отсеивает</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
-      {error && <Banner kind="error">{error}</Banner>}
-      <Button variant={vacancy.status === 'active' ? 'secondary' : 'primary'} stretched loading={busy} disabled={busy}
-        onClick={toggle}>
-        {vacancy.status === 'active' ? 'Закрыть вакансию' : 'Открыть снова'}
+      {error && <Banner>{error}</Banner>}
+      <Button variant={active ? 'secondary' : 'primary'} size="large" stretched loading={busy} disabled={busy}
+        iconBefore={active ? <Lock {...ICON} /> : <LockOpen {...ICON} />} onClick={toggle}>
+        {active ? 'Закрыть вакансию' : 'Открыть снова'}
       </Button>
-    </div>
+      {active && <p className="small faint">Закрытая вакансия перестаёт принимать отклики по ссылке.</p>}
+    </section>
   );
 }

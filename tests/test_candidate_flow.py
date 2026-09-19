@@ -44,7 +44,7 @@ async def test_full_candidate_path(demo, dispatcher, messenger, session_factory)
 
     to_owner = [m for m in messenger.sent if m.user_id == OWNER]
     assert len(to_owner) == 1 and "Новый отклик" in to_owner[0].text
-    assert "Не прошёл отсеивающие" in to_owner[0].text
+    assert "не прошёл отсеивающие" in to_owner[0].text
     assert "отправлен" in messenger.sent[-1].text
 
     async with session_factory() as session:

@@ -1,7 +1,10 @@
-import { Button, Typography } from '@maxhub/max-ui';
-import { STATUS_LABELS } from '../statuses';
+import { Button } from '@maxhub/max-ui';
+import { Bookmark, Check, Phone, TriangleAlert, Undo2, X } from 'lucide-react';
+import { formatPhone } from '../format';
+import { STATUS_LABELS, STATUS_TONES } from '../statuses';
 import type { Application, ApplicationStatus, Question } from '../types';
 import { ConfirmButton } from './ConfirmButton';
+import { Avatar, ICON, Tag } from './ui';
 
 interface Props {
   app: Application;
@@ -12,54 +15,74 @@ interface Props {
 
 export function formatDate(iso: string | null): string {
   if (!iso) return '';
-  return new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 }
 
 export function CandidateCard({ app, questions, busy, onStatus }: Props) {
   const answers = new Map(app.answers.map((a) => [a.question_id, a]));
-  return (
-    <div className={`card candidate ${app.screening_failed ? 'candidate--failed' : ''}`}>
-      <div className="candidate__head">
-        <div>
-          <Typography.Headline>{app.name}</Typography.Headline>
-          <a className="phone" href={`tel:${app.contact}`}>{app.contact}</a>
-        </div>
-        <span className={`badge badge--${app.status}`}>{STATUS_LABELS[app.status]}</span>
-      </div>
-      {app.screening_failed && <div className="warn">⚠️ Не прошёл отсеивающие вопросы</div>}
+  const pending = app.status === 'screened' || app.status === 'invited';
 
-      <ul className="answers">
-        {questions.map((q) => {
-          const a = answers.get(q.id);
-          return (
-            <li key={q.id} className={a && !a.passed ? 'answer--bad' : ''}>
-              <span className="muted">{q.text}</span>
-              <b>{a ? `${q.is_blocking ? (a.passed ? '✓ ' : '✗ ') : ''}${a.display}` : '—'}</b>
-            </li>
-          );
-        })}
-      </ul>
-      <span className="muted small">Откликнулся {formatDate(app.created_at)}</span>
+  return (
+    <article className="card">
+      <div className="candidate__head">
+        <div className="person">
+          <Avatar name={app.name} />
+          <div className="person__body">
+            <h3 className="h3">{app.name}</h3>
+            <a className="phone" href={`tel:${app.contact}`}>
+              <Phone size={14} strokeWidth={2} />
+              {formatPhone(app.contact)}
+            </a>
+          </div>
+        </div>
+        <Tag tone={STATUS_TONES[app.status]}>{STATUS_LABELS[app.status]}</Tag>
+      </div>
+
+      {app.screening_failed && (
+        <Tag tone="danger">
+          <TriangleAlert size={13} strokeWidth={2.2} />
+          Не прошёл отсеивающие вопросы
+        </Tag>
+      )}
+
+      {questions.length > 0 && (
+        <dl className="answers">
+          {questions.map((q) => {
+            const a = answers.get(q.id);
+            const bad = a && !a.passed;
+            return [
+              <dt key={`q${q.id}`}>{q.text}</dt>,
+              <dd key={`a${q.id}`} className={bad ? 'bad' : q.is_blocking ? 'ok' : ''}>
+                {q.is_blocking && a && (bad ? <X size={14} strokeWidth={2.4} /> : <Check size={14} strokeWidth={2.4} />)}
+                {a ? a.display : '—'}
+              </dd>,
+            ];
+          })}
+        </dl>
+      )}
+      <span className="small faint">Отклик {formatDate(app.created_at)}</span>
 
       <div className="actions">
-        {app.status === 'screened' || app.status === 'invited' ? (
+        {pending ? (
           <>
             {app.status === 'screened' && (
-              <Button size="small" variant="secondary" disabled={busy} onClick={() => onStatus('reserve')}>
+              <Button size="medium" variant="secondary" disabled={busy} iconBefore={<Bookmark {...ICON} />}
+                onClick={() => onStatus('reserve')}>
                 В резерв
               </Button>
             )}
-            <ConfirmButton size="small" variant="secondary" disabled={busy} confirmText="Точно отказать?"
+            <ConfirmButton size="medium" variant="secondary" disabled={busy} confirmText="Точно отказать?"
               onClick={() => onStatus('rejected')}>
               Отказать
             </ConfirmButton>
           </>
         ) : (
-          <Button size="small" variant="secondary" disabled={busy} onClick={() => onStatus('screened')}>
+          <Button size="medium" variant="secondary" disabled={busy} iconBefore={<Undo2 {...ICON} />}
+            onClick={() => onStatus('screened')}>
             Вернуть к рассмотрению
           </Button>
         )}
       </div>
-    </div>
+    </article>
   );
 }

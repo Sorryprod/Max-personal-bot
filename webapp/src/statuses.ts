@@ -7,6 +7,13 @@ export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   rejected: 'Отказ',
 };
 
+export const STATUS_TONES: Record<ApplicationStatus, 'brand' | 'accent' | 'danger' | undefined> = {
+  screened: 'accent',
+  invited: 'brand',
+  reserve: undefined,
+  rejected: 'danger',
+};
+
 export type Filter = ApplicationStatus | 'all';
 
 export const FILTERS: { key: Filter; label: string }[] = [
