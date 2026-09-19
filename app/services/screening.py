@@ -189,7 +189,7 @@ async def candidate_applications(session: AsyncSession, max_user_id: int) -> lis
         select(Application)
         .join(Candidate)
         .where(Candidate.max_user_id == max_user_id)
-        .options(selectinload(Application.vacancy).selectinload(Vacancy.employer))
+        .options(selectinload(Application.vacancy).selectinload(Vacancy.employer), selectinload(Application.slots))
         .order_by(Application.created_at.desc())
     )
     return list(result)

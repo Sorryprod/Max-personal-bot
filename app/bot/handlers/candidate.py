@@ -10,7 +10,7 @@ from app.bot.states import Ctx, Step
 from app.bot.views import vacancy_card
 from app.db.models import Application, ApplicationStatus, Candidate, QuestionType, ScreeningQuestion, Vacancy
 from app.messaging import Button, ButtonKind, CallbackAnswer, EventKind, Keyboard
-from app.services import notifications, screening
+from app.services import interviews, notifications, screening
 
 # --- вход ---
 
@@ -26,7 +26,11 @@ async def start(ctx: Ctx) -> None:
     for app in applications:
         status = screening.STATUS_LABELS.get(ApplicationStatus(app.status), app.status)
         place = app.vacancy.employer.place_name
-        lines.append(f"• {escape(app.vacancy.position)}, {escape(place)} — <i>{escape(status)}</i>")
+        line = f"• {escape(app.vacancy.position)}, {escape(place)} — <i>{escape(status)}</i>"
+        slot = interviews.chosen_slot(app) if app.status == ApplicationStatus.invited else None
+        if slot:
+            line += f", {interviews.format_slot(slot.starts_at)}"
+        lines.append(line)
     ctx.reply("\n".join(lines))
 
 
@@ -80,6 +84,10 @@ async def on_callback(ctx: Ctx, data: str) -> None:
             _ask_name(ctx, candidate)
     elif action == "my":
         await start(ctx)
+    elif action == "slot" and arg.isdigit():
+        await _choose_slot(ctx, int(arg))
+    elif action == "noslot" and arg.isdigit():
+        await _decline_slots(ctx, int(arg))
     else:
         ctx.answer = CallbackAnswer(ctx.event.callback_id or "", notification=texts.STALE_BUTTON)
 
@@ -265,3 +273,40 @@ async def _finish(ctx: Ctx, vacancy: Vacancy, application: Application, candidat
 
 def _confirm_keyboard() -> Keyboard:
     return [[Button("Отправить", "cand:confirm"), Button("Изменить данные", "cand:edit")]]
+
+
+# --- собеседование ---
+
+
+async def _choose_slot(ctx: Ctx, slot_id: int) -> None:
+    result, application, slot = await interviews.choose_slot(ctx.session, ctx.user_id, slot_id)
+    callback_id = ctx.event.callback_id or ""
+    if result in (interviews.ChooseResult.not_found, interviews.ChooseResult.inactive) or application is None:
+        ctx.answer = CallbackAnswer(callback_id, notification=texts.INVITE_INACTIVE)
+    elif result == interviews.ChooseResult.already:
+        assert slot is not None
+        ctx.answer = CallbackAnswer(
+            callback_id, notification=texts.SLOT_ALREADY.format(time=interviews.format_slot(slot.starts_at))
+        )
+    else:
+        assert slot is not None
+        vacancy = application.vacancy
+        ctx.reply(texts.SLOT_CONFIRMED.format(
+            time=interviews.format_slot(slot.starts_at),
+            address=escape(vacancy.address),
+            position=escape(vacancy.position),
+            place=escape(vacancy.employer.place_name),
+        ))
+        notifications.notify_slot_chosen(ctx.outbox, ctx.links, application, slot)
+
+
+async def _decline_slots(ctx: Ctx, application_id: int) -> None:
+    result, application = await interviews.decline_slots(ctx.session, ctx.user_id, application_id)
+    callback_id = ctx.event.callback_id or ""
+    if result == interviews.ChooseResult.ok and application is not None:
+        ctx.reply(texts.SLOTS_DECLINED)
+        notifications.notify_slots_declined(ctx.outbox, ctx.links, application)
+    elif result == interviews.ChooseResult.already:
+        ctx.answer = CallbackAnswer(callback_id, notification=texts.SLOT_ALREADY_SHORT)
+    else:
+        ctx.answer = CallbackAnswer(callback_id, notification=texts.INVITE_INACTIVE)

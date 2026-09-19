@@ -255,3 +255,16 @@ svg { flex-shrink: 0; }
 .spinner { color: var(--brand); animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.5s; } }
+
+/* --- собеседование --- */
+.interview { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: var(--radius-m); background: var(--brand-soft); }
+.interview > svg { color: var(--brand); margin-top: 2px; }
+.invite { display: flex; flex-direction: column; gap: 10px; padding: 12px; margin: 0 -4px; border-radius: var(--radius-m); background: var(--surface); }
+.invite__row { display: flex; gap: 8px; align-items: center; }
+.native-field {
+  flex: 1; min-width: 0; height: 44px; padding: 0 12px; border: 1px solid transparent; border-radius: 12px;
+  background: var(--card); color: var(--text); font: inherit; font-size: 15px; font-variant-numeric: tabular-nums;
+  color-scheme: light dark;
+}
+.native-field:focus { outline: none; border-color: var(--brand); }
+.native-field[type='time'] { flex: 0 0 110px; }

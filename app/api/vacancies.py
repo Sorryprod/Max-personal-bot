@@ -131,6 +131,7 @@ async def me(request: Request, user: WebAppUser = Depends(current_user)) -> dict
         "employer": {"place_name": employer.place_name, "city": employer.city} if registered else None,
         "question_templates": vacancies.QUESTION_TEMPLATES,
         "max_questions": vacancies.MAX_QUESTIONS,
+        "timezone": request.app.state.settings.app_timezone,
     }
 
 

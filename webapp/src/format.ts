@@ -35,3 +35,11 @@ export function formatPhone(phone: string): string {
   const m = /^\+7(\d{3})(\d{3})(\d{2})(\d{2})$/.exec(phone);
   return m ? `+7 ${m[1]} ${m[2]}-${m[3]}-${m[4]}` : phone;
 }
+
+/** Время собеседования в часовом поясе точки: «пт, 20 сентября, 11:00». */
+export function formatSlot(iso: string, timeZone: string): string {
+  const d = new Date(iso);
+  const day = d.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long', timeZone });
+  const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone });
+  return `${day}, ${time}`;
+}

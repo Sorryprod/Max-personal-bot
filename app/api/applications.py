@@ -4,13 +4,13 @@ from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.auth import WebAppUser, current_user
 from app.api.deps import api_error, require_employer, unit_of_work
 from app.api.vacancies import VacancyOut, vacancy_out
 from app.db.models import Application, ApplicationStatus, Vacancy
-from app.services import applications, vacancies
+from app.services import applications, interviews, notifications, vacancies
 from app.services.screening import display_value, passes
 
 router = APIRouter(prefix="/api", tags=["applications"])
@@ -47,6 +47,11 @@ class VacancyApplicationsOut(BaseModel):
 
 class StatusIn(BaseModel):
     status: Literal["screened", "reserve", "rejected"]
+
+
+class InviteIn(BaseModel):
+    # Время без часового пояса считается местным (APP_TIMEZONE).
+    slots: list[datetime] = Field(min_length=1, max_length=5)
 
 
 def application_out(application: Application, vacancy: Vacancy) -> ApplicationOut:
@@ -101,4 +106,22 @@ async def set_application_status(
             raise api_error(404, "not_found", "Отклик не найден")
         applications.set_status(outbox, application, ApplicationStatus(body.status))
         await session.flush()
+        return application_out(application, application.vacancy)
+
+
+@router.post("/applications/{application_id}/invite")
+async def invite_candidate(
+    request: Request, application_id: int, body: InviteIn, user: WebAppUser = Depends(current_user)
+) -> ApplicationOut:
+    """Приглашение с 2–3 вариантами времени; повторный вызов заменяет предложенные слоты."""
+    async with unit_of_work(request) as (session, outbox):
+        employer = await require_employer(session, user)
+        application = await applications.employer_application(session, employer, application_id)
+        if application is None:
+            raise api_error(404, "not_found", "Отклик не найден")
+        try:
+            await interviews.invite(session, application, body.slots)
+        except interviews.SlotError as exc:
+            raise api_error(422, "validation", str(exc)) from exc
+        notifications.notify_invitation(outbox, application)
         return application_out(application, application.vacancy)

@@ -2,9 +2,10 @@
 
 from html import escape
 
-from app.db.models import Application, ApplicationStatus, Candidate, Vacancy
-from app.messaging import Outbox
+from app.db.models import Application, ApplicationStatus, Candidate, InterviewSlot, Vacancy
+from app.messaging import Button, Outbox
 from app.services.applinks import AppLinks
+from app.services.interviews import format_slot
 from app.services.screening import display_value
 
 
@@ -25,8 +26,7 @@ def notify_new_application(
     outbox.send(
         vacancy.employer.max_user_id,
         "\n".join(lines),
-        [[links.button("Открыть кандидатов", vacancy.employer.max_user_id, vacancy.employer.name,
-                       f"vacancy-{vacancy.id}")]],
+        [[_open_vacancy(links, vacancy)]],
     )
 
 
@@ -49,3 +49,47 @@ def notify_status_changed(outbox: Outbox, application: Application) -> None:
         case _:
             return  # «на рассмотрении» — внутренний статус, кандидата не тревожим
     outbox.send(application.candidate.max_user_id, text)
+
+
+def notify_invitation(outbox: Outbox, application: Application) -> None:
+    vacancy = application.vacancy
+    employer = vacancy.employer
+    place = ", ".join(p for p in (employer.place_name, employer.city) if p)
+    text = (
+        "<b>Приглашение на собеседование</b>\n\n"
+        f"Вакансия «{escape(vacancy.position)}» — {escape(place)}\n"
+        f"<b>Адрес:</b> {escape(vacancy.address)}\n\n"
+        "Выберите удобное время:"
+    )
+    keyboard = [[Button(format_slot(slot.starts_at), f"cand:slot:{slot.id}")] for slot in application.slots]
+    keyboard.append([Button("Ни одно время не подходит", f"cand:noslot:{application.id}")])
+    outbox.send(application.candidate.max_user_id, text, keyboard)
+
+
+def notify_slot_chosen(outbox: Outbox, links: AppLinks, application: Application, slot: InterviewSlot) -> None:
+    vacancy = application.vacancy
+    candidate = application.candidate
+    outbox.send(
+        vacancy.employer.max_user_id,
+        "<b>Собеседование назначено</b>\n\n"
+        f"{escape(candidate.name)}, {escape(candidate.contact)} — «{escape(vacancy.position)}»\n"
+        f"<b>Время:</b> {format_slot(slot.starts_at)}",
+        [[_open_vacancy(links, vacancy)]],
+    )
+
+
+def notify_slots_declined(outbox: Outbox, links: AppLinks, application: Application) -> None:
+    vacancy = application.vacancy
+    candidate = application.candidate
+    outbox.send(
+        vacancy.employer.max_user_id,
+        "<b>Кандидату не подошло время</b>\n\n"
+        f"{escape(candidate.name)}, {escape(candidate.contact)} — «{escape(vacancy.position)}».\n"
+        "Предложите другие варианты в карточке кандидата или позвоните ему.",
+        [[_open_vacancy(links, vacancy)]],
+    )
+
+
+def _open_vacancy(links: AppLinks, vacancy: Vacancy):
+    return links.button("Открыть кандидатов", vacancy.employer.max_user_id, vacancy.employer.name,
+                        f"vacancy-{vacancy.id}")

@@ -146,6 +146,9 @@ class Answer(Base):
 
 class InterviewSlot(Base):
     __tablename__ = "interview_slot"
+    # id слота зашит в кнопку приглашения, поэтому id удалённых слотов не должны переиспользоваться.
+    # В PostgreSQL это гарантирует sequence; для SQLite (тесты) нужен AUTOINCREMENT.
+    __table_args__ = {"sqlite_autoincrement": True}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     application_id: Mapped[int] = mapped_column(ForeignKey("application.id", ondelete="CASCADE"), index=True)

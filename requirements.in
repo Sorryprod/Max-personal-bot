@@ -5,3 +5,4 @@ asyncpg
 alembic
 httpx
 pydantic-settings
+tzdata

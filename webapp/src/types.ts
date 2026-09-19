@@ -41,6 +41,7 @@ export interface Me {
   employer: { place_name: string; city: string } | null;
   question_templates: QuestionDraft[];
   max_questions: number;
+  timezone: string;
 }
 
 export type ApplicationStatus = 'screened' | 'invited' | 'reserve' | 'rejected';

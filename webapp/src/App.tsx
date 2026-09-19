@@ -82,7 +82,7 @@ export function App() {
       return (
         <>
           <TopBar onBack={toList} backLabel="Вакансии" />
-          <VacancyDetail id={screen.id} />
+          <VacancyDetail id={screen.id} timezone={me.timezone} />
         </>
       );
     default:

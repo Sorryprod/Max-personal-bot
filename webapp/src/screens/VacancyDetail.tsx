@@ -10,7 +10,7 @@ import { copyText, salaryText } from '../format';
 import { FILTERS, type Filter } from '../statuses';
 import type { Application, ApplicationStatus, Vacancy, VacancyApplications } from '../types';
 
-export function VacancyDetail({ id }: { id: number }) {
+export function VacancyDetail({ id, timezone }: { id: number; timezone: string }) {
   const [data, setData] = useState<VacancyApplications | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -53,6 +53,12 @@ export function VacancyDetail({ id }: { id: number }) {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const invite = async (app: Application, slots: string[]) => {
+    // Ошибка пробрасывается в панель приглашения и показывается там же.
+    const updated = await api.post<Application>(`/applications/${app.id}/invite`, { slots });
+    setData((d) => d && { ...d, applications: d.applications.map((a) => (a.id === app.id ? updated : a)) });
   };
 
   return (
@@ -108,8 +114,9 @@ export function VacancyDetail({ id }: { id: number }) {
               <CompareTable apps={visible} questions={questions} busyId={busyId} onStatus={changeStatus} />
             ) : (
               visible.map((app) => (
-                <CandidateCard key={app.id} app={app} questions={questions} busy={busyId === app.id}
-                  onStatus={(status) => changeStatus(app, status)} />
+                <CandidateCard key={app.id} app={app} questions={questions} timezone={timezone}
+                  busy={busyId === app.id} onStatus={(status) => changeStatus(app, status)}
+                  onInvite={(slots) => invite(app, slots)} />
               ))
             )}
           </>
