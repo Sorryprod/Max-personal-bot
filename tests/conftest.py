@@ -1,6 +1,8 @@
 import os
 
-os.environ.setdefault("BOT_TOKEN", "test-token")
+# Переменные окружения важнее .env — тесты не зависят от локальных настроек.
+os.environ["BOT_TOKEN"] = "test-token"
+os.environ["UPDATES_MODE"] = "polling"
 
 import pytest
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -29,6 +31,9 @@ class FakeMessenger:
     def invite_link(self, slug: str) -> str:
         return f"https://max.ru/{self.bot_username}?start={slug}"
 
+    def app_link(self, start_param: str) -> str:
+        return f"https://max.ru/{self.bot_username}?startapp={start_param}"
+
 
 @pytest.fixture
 async def session_factory():
@@ -47,3 +52,18 @@ def messenger() -> FakeMessenger:
 @pytest.fixture
 def dispatcher(session_factory, messenger) -> Dispatcher:
     return Dispatcher(session_factory, messenger)
+
+
+@pytest.fixture
+async def api(session_factory, messenger):
+    """HTTP-клиент к API без lifespan: БД и мессенджер подменены."""
+    import httpx
+
+    from app.config import Settings
+    from app.main import create_app
+
+    app = create_app(Settings(bot_token="test-token", _env_file=None))
+    app.state.session_factory = session_factory
+    app.state.messenger = messenger
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        yield client

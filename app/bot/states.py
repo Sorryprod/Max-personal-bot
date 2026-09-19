@@ -18,6 +18,9 @@ class Step(StrEnum):
     cand_name = "cand_name"
     cand_contact = "cand_contact"
     cand_confirm = "cand_confirm"
+    # работодатель (префикс emp_)
+    emp_place = "emp_place"
+    emp_city = "emp_city"
 
 
 async def load_state(session: AsyncSession, user_id: int) -> DialogState:

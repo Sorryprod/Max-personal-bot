@@ -21,6 +21,8 @@ def _button(btn: Any, bot_username: str) -> dict[str, Any]:
             # Поддержка payload у open_app в документации не описана — не передаём,
             # чтобы неизвестное поле не сломало отправку всего сообщения.
             return {"type": "open_app", "text": btn.text, "web_app": bot_username}
+        case ButtonKind.clipboard:
+            return {"type": "clipboard", "text": btn.text, "payload": btn.payload}
     raise ValueError(f"Неизвестный тип кнопки: {btn.kind}")
 
 

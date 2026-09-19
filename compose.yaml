@@ -28,5 +28,22 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Необязательный HTTPS-туннель CloudPub: docker compose --profile tunnel up
+  # Публичный адрес виден в логах: docker compose logs tunnel
+  tunnel:
+    profiles: ["tunnel"]
+    image: cloudpub/cloudpub@sha256:261123b5f7706e800816af5751d42232a283a149a136718043eaeb37751fcc3b
+    environment:
+      TOKEN: ${CLOUDPUB_TOKEN:-}
+      HTTP: api:8080
+    command: ["run"]
+    volumes:
+      # Конфиг агента сохраняется, чтобы адрес туннеля не менялся при перезапуске
+      - cloudpub-config:/home/cloudpub
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  cloudpub-config:

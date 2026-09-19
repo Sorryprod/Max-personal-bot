@@ -36,6 +36,7 @@ class ButtonKind(StrEnum):
     link = "link"
     contact = "contact"  # запросить номер телефона
     app = "app"  # открыть мини-приложение бота
+    clipboard = "clipboard"  # скопировать payload в буфер обмена
 
 
 @dataclass(frozen=True)
@@ -86,6 +87,8 @@ class Messenger(Protocol):
     async def answer_callback(self, answer: CallbackAnswer) -> bool: ...
 
     def invite_link(self, slug: str) -> str: ...
+
+    def app_link(self, start_param: str) -> str: ...
 
 
 async def flush_outbox(messenger: Messenger, outbox: Outbox) -> None:

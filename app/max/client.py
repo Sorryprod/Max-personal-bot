@@ -136,3 +136,6 @@ class MaxClient:
 
     def invite_link(self, slug: str) -> str:
         return f"https://max.ru/{self.bot_username}?start={slug}"
+
+    def app_link(self, start_param: str) -> str:
+        return f"https://max.ru/{self.bot_username}?startapp={start_param}"
