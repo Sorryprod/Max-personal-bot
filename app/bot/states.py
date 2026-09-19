@@ -1,6 +1,6 @@
 """Конечный автомат диалога. Состояние хранится в БД, а не в памяти процесса."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
@@ -8,11 +8,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import DialogState
-from app.messaging import IncomingEvent, Keyboard, Messenger, Outbox
+from app.messaging import CallbackAnswer, IncomingEvent, Keyboard, Messenger, Outbox
 
 
 class Step(StrEnum):
     idle = "idle"
+    # соискатель (префикс cand_ — маршрутизация в handlers/candidate.py)
+    cand_question = "cand_question"
+    cand_name = "cand_name"
+    cand_contact = "cand_contact"
+    cand_confirm = "cand_confirm"
 
 
 async def load_state(session: AsyncSession, user_id: int) -> DialogState:
@@ -34,6 +39,8 @@ class Ctx:
     state: DialogState
     outbox: Outbox
     messenger: Messenger
+    # Ответ на нажатие кнопки; обработчик может заменить или обнулить его.
+    answer: CallbackAnswer | None = field(default=None)
 
     @property
     def user_id(self) -> int:

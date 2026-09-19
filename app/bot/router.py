@@ -1,6 +1,7 @@
 """Приём событий: идемпотентность, транзакция, маршрутизация по состоянию диалога."""
 
 import logging
+from html import escape
 
 from sqlalchemy import insert
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -31,20 +32,23 @@ async def mark_processed(session: AsyncSession, key: str) -> bool:
     return result.rowcount == 1
 
 
+def default_callback_answer(event: IncomingEvent) -> CallbackAnswer:
+    """По умолчанию убираем клавиатуру и оставляем под сообщением выбранный вариант."""
+    if event.source_text and event.pressed_text:
+        return CallbackAnswer(
+            event.callback_id or "",
+            edit_text=f"{escape(event.source_text)}\n\n<b>✓ {escape(event.pressed_text)}</b>",
+        )
+    return CallbackAnswer(event.callback_id or "", notification="Принято")
+
+
 async def route(ctx: Ctx) -> None:
     event = ctx.event
     if event.kind == EventKind.callback:
-        ctx.outbox.callback_answers.append(CallbackAnswer(event.callback_id or ""))
-        payload = event.payload or ""
-        prefix = payload.split(":", 1)[0]
-        if prefix == "role":
-            await common.choose_role(ctx, payload.split(":", 1)[1] if ":" in payload else "")
-        elif prefix == "emp":
-            await employer.on_callback(ctx, payload)
-        elif prefix == "cand":
-            await candidate.on_callback(ctx, payload)
-        else:
-            ctx.reply(texts.UNKNOWN_BUTTON)
+        ctx.answer = default_callback_answer(event)
+        await _route_callback(ctx)
+        if ctx.answer is not None:
+            ctx.outbox.callback_answers.append(ctx.answer)
         return
 
     if event.kind == EventKind.start:
@@ -63,12 +67,26 @@ async def route(ctx: Ctx) -> None:
         await common.fallback(ctx)
 
 
+async def _route_callback(ctx: Ctx) -> None:
+    payload = ctx.event.payload or ""
+    prefix, _, rest = payload.partition(":")
+    if prefix == "role":
+        await common.choose_role(ctx, rest)
+    elif prefix == "emp":
+        await employer.on_callback(ctx, rest)
+    elif prefix == "cand":
+        await candidate.on_callback(ctx, rest)
+    else:
+        ctx.reply(texts.UNKNOWN_BUTTON)
+
+
 class Dispatcher:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession], messenger: Messenger) -> None:
         self._sf = session_factory
         self._messenger = messenger
 
     async def handle(self, event: IncomingEvent) -> None:
+        log.info("Событие %s от %s, payload=%r", event.kind, event.user_id, event.payload)
         outbox = Outbox()
         try:
             async with self._sf() as session, session.begin():
@@ -89,7 +107,9 @@ class Dispatcher:
         log.exception("Ошибка обработки %s", event.key, exc_info=exc)
         outbox = Outbox()
         if event.callback_id:
-            outbox.callback_answers.append(CallbackAnswer(event.callback_id))
+            outbox.callback_answers.append(
+                CallbackAnswer(event.callback_id, notification="Ошибка, попробуйте ещё раз")
+            )
         outbox.send(event.user_id, texts.INTERNAL_ERROR)
         try:
             async with self._sf() as session, session.begin():

@@ -122,6 +122,11 @@ class MaxClient:
         body: dict[str, Any] = {}
         if answer.notification:
             body["notification"] = answer.notification
+        if answer.edit_text is not None:
+            # Пустой список вложений убирает клавиатуру с исходного сообщения.
+            body["message"] = {"text": answer.edit_text, "format": "html", "attachments": []}
+        if not body:
+            return True  # MAX требует message или notification — отвечать нечем
         try:
             await self.request("POST", "/answers", params={"callback_id": answer.callback_id}, json=body)
             return True

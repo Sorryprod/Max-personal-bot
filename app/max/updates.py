@@ -26,6 +26,17 @@ def _phone_from_contact(attachments: list[dict[str, Any]]) -> str | None:
     return None
 
 
+def _pressed_button_text(message: dict[str, Any], payload: str) -> str:
+    for att in (message.get("body") or {}).get("attachments") or []:
+        if att.get("type") != "inline_keyboard":
+            continue
+        for row in (att.get("payload") or {}).get("buttons") or []:
+            for button in row:
+                if button.get("payload") == payload:
+                    return button.get("text") or ""
+    return ""
+
+
 def parse_update(raw: dict[str, Any]) -> IncomingEvent | None:
     """Возвращает событие или None, если апдейт нас не интересует."""
     utype = raw.get("update_type")
@@ -71,13 +82,17 @@ def parse_update(raw: dict[str, Any]) -> IncomingEvent | None:
         user = callback.get("user") or {}
         if not callback.get("callback_id") or "user_id" not in user:
             return None
+        message = raw.get("message") or {}
+        payload = callback.get("payload") or ""
         return IncomingEvent(
             key=f"cb:{callback['callback_id']}",
             kind=EventKind.callback,
             user_id=user["user_id"],
             user_name=_user_name(user),
-            payload=callback.get("payload") or "",
+            payload=payload,
             callback_id=callback["callback_id"],
+            source_text=(message.get("body") or {}).get("text") or "",
+            pressed_text=_pressed_button_text(message, payload),
         )
 
     return None

@@ -26,6 +26,9 @@ class IncomingEvent:
     payload: str | None = None
     callback_id: str | None = None
     phone: str | None = None
+    # Для callback: текст сообщения с кнопками и подпись нажатой кнопки.
+    source_text: str = ""
+    pressed_text: str = ""
 
 
 class ButtonKind(StrEnum):
@@ -54,8 +57,14 @@ class OutMessage:
 
 @dataclass
 class CallbackAnswer:
+    """Ответ на нажатие кнопки: всплывающее уведомление и/или замена исходного сообщения.
+
+    edit_text задан — исходное сообщение заменяется этим текстом без клавиатуры.
+    """
+
     callback_id: str
     notification: str | None = None
+    edit_text: str | None = None
 
 
 @dataclass
