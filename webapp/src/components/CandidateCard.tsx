@@ -65,7 +65,9 @@ export function CandidateCard({ app, questions, timezone, busy, onStatus, onInvi
               <CalendarClock {...ICON} />
               <div className="stack-s">
                 <span className="small muted">Ждём, когда кандидат выберет время</span>
-                <span className="small">{app.slots.map((s) => formatSlot(s.starts_at, timezone)).join(' · ')}</span>
+                {app.slots.map((s) => (
+                  <span key={s.id} className="small">{formatSlot(s.starts_at, timezone)}</span>
+                ))}
               </div>
             </>
           )}
@@ -100,7 +102,8 @@ export function CandidateCard({ app, questions, timezone, busy, onStatus, onInvi
       ) : (
         <div className="actions">
           {(app.status === 'screened' || app.status === 'reserve') && (
-            <Button disabled={busy} iconBefore={<CalendarClock {...ICON} />} onClick={() => setInviting(true)}>
+            <Button className="action-main" disabled={busy} iconBefore={<CalendarClock {...ICON} />}
+              onClick={() => setInviting(true)}>
               Пригласить
             </Button>
           )}
