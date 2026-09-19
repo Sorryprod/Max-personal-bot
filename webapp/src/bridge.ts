@@ -21,6 +21,8 @@ export interface WebApp {
   ready?: () => void;
   close?: () => void;
   BackButton?: BackButton;
+  shareMaxContent?: (params: { text?: string; link?: string }) => Promise<unknown>;
+  HapticFeedback?: { notificationOccurred?: (type: 'error' | 'success' | 'warning') => void };
 }
 
 declare global {
@@ -87,4 +89,27 @@ export function bindBackButton(handler: (() => void) | null): () => void {
       /* ignore */
     }
   };
+}
+
+/** Экран «Поделиться» внутри MAX доступен, только когда приложение открыто из клиента MAX. */
+export const canShareToMax = Boolean(initData && typeof webApp?.shareMaxContent === 'function');
+
+/** Открывает выбор чата MAX для пересылки текста со ссылкой. false — если не получилось. */
+export async function shareToMax(text: string, link: string): Promise<boolean> {
+  if (!canShareToMax) return false;
+  try {
+    await webApp!.shareMaxContent!({ text, link });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Лёгкий тактильный отклик; на десктопе и в вебе молча ничего не делает. */
+export function haptic(type: 'error' | 'success' | 'warning'): void {
+  try {
+    webApp?.HapticFeedback?.notificationOccurred?.(type);
+  } catch {
+    /* не поддерживается */
+  }
 }

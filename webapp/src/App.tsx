@@ -68,6 +68,8 @@ export function App() {
     );
   }
 
+  const place = `${me.employer.place_name}, ${me.employer.city}`;
+
   switch (screen.name) {
     case 'new':
       return (
@@ -77,12 +79,12 @@ export function App() {
         </>
       );
     case 'created':
-      return <VacancyCreated vacancy={screen.vacancy} onDone={toList} />;
+      return <VacancyCreated vacancy={screen.vacancy} place={place} onDone={toList} />;
     case 'vacancy':
       return (
         <>
           <TopBar onBack={toList} backLabel="Вакансии" />
-          <VacancyDetail id={screen.id} timezone={me.timezone} />
+          <VacancyDetail id={screen.id} timezone={me.timezone} place={place} />
         </>
       );
     default:

@@ -130,7 +130,9 @@ async def current_user(
             return validate_login_token(x_login_token, settings.bot_token)
         raise InitDataError("нет ни initData, ни токена входа")
     except InitDataError as exc:
-        log.warning("Вход в мини-приложение отклонён: %s", exc)
+        # Только имена полей, без значений: помогает разобраться с форматом, не раскрывая данные.
+        fields = sorted(k for k, _ in parse_qsl(_normalize(x_init_data or ""), keep_blank_values=True))
+        log.warning("Вход в мини-приложение отклонён: %s; поля initData: %s", exc, fields)
         raise HTTPException(
             status_code=401,
             detail={

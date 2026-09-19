@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@maxhub/max-ui';
-import { Check, Clock, Copy, LayoutList, Link2, ListChecks, Lock, LockOpen, MapPin, Table2, Users, Wallet } from 'lucide-react';
+import { Clock, LayoutList, Link2, ListChecks, Lock, LockOpen, MapPin, Table2, Users, Wallet } from 'lucide-react';
 import { api, ApiError } from '../api';
+import { haptic } from '../bridge';
 import { CandidateCard } from '../components/CandidateCard';
 import { CompareTable } from '../components/CompareTable';
+import { ShareActions } from '../components/ShareActions';
 import { Banner, EmptyState, ErrorState, Loading } from '../components/States';
 import { ICON, Meta, Tag } from '../components/ui';
-import { copyText, salaryText } from '../format';
+import { salaryText } from '../format';
 import { FILTERS, type Filter } from '../statuses';
 import type { Application, ApplicationStatus, Vacancy, VacancyApplications } from '../types';
 
-export function VacancyDetail({ id, timezone }: { id: number; timezone: string }) {
+export function VacancyDetail({ id, timezone, place }: { id: number; timezone: string; place: string }) {
   const [data, setData] = useState<VacancyApplications | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -58,6 +60,7 @@ export function VacancyDetail({ id, timezone }: { id: number; timezone: string }
   const invite = async (app: Application, slots: string[]) => {
     // Ошибка пробрасывается в панель приглашения и показывается там же.
     const updated = await api.post<Application>(`/applications/${app.id}/invite`, { slots });
+    haptic('success');
     setData((d) => d && { ...d, applications: d.applications.map((a) => (a.id === app.id ? updated : a)) });
   };
 
@@ -83,7 +86,7 @@ export function VacancyDetail({ id, timezone }: { id: number; timezone: string }
               icon={Users}
               title="Откликов пока нет"
               hint="Перешлите ссылку-приглашение в городские чаты — отклики появятся здесь, а бот пришлёт уведомление."
-              actions={<CopyLink link={vacancy.invite_link} />}
+              actions={vacancy.status === 'active' ? <ShareActions vacancy={vacancy} place={place} /> : undefined}
             />
           </div>
         ) : (
@@ -123,22 +126,12 @@ export function VacancyDetail({ id, timezone }: { id: number; timezone: string }
         )}
       </section>
 
-      <VacancySettings vacancy={vacancy} onChange={(v) => setData((d) => d && { ...d, vacancy: v })} />
+      <VacancySettings vacancy={vacancy} place={place} onChange={(v) => setData((d) => d && { ...d, vacancy: v })} />
     </div>
   );
 }
 
-function CopyLink({ link }: { link: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <Button variant="secondary" stretched iconBefore={copied ? <Check {...ICON} /> : <Copy {...ICON} />}
-      onClick={async () => setCopied(await copyText(link))}>
-      {copied ? 'Ссылка скопирована' : 'Скопировать ссылку'}
-    </Button>
-  );
-}
-
-function VacancySettings({ vacancy, onChange }: { vacancy: Vacancy; onChange: (v: Vacancy) => void }) {
+function VacancySettings({ vacancy, place, onChange }: { vacancy: Vacancy; place: string; onChange: (v: Vacancy) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const active = vacancy.status === 'active';
@@ -164,7 +157,7 @@ function VacancySettings({ vacancy, onChange }: { vacancy: Vacancy; onChange: (v
           <Link2 {...ICON} />
           <span className="link-box__url">{vacancy.invite_link}</span>
         </div>
-        <CopyLink link={vacancy.invite_link} />
+        {active && <ShareActions vacancy={vacancy} place={place} />}
       </div>
       {vacancy.questions && vacancy.questions.length > 0 && (
         <div className="card">
