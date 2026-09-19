@@ -105,6 +105,8 @@ class Candidate(Base):
     max_user_id: Mapped[int] = mapped_column(BigInteger, unique=True)
     name: Mapped[str] = mapped_column(String(200), default="")
     contact: Mapped[str] = mapped_column(String(100), default="")
+    # Когда кандидат согласился передать имя и телефон работодателю (152-ФЗ).
+    consent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _now_column()
 
 

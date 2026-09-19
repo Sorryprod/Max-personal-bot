@@ -1,5 +1,6 @@
 """Сценарий соискателя: ссылка-приглашение → карточка → вопросы → имя и контакт → отклик."""
 
+from datetime import UTC, datetime
 from html import escape
 
 from sqlalchemy import select
@@ -79,6 +80,7 @@ async def on_callback(ctx: Ctx, data: str) -> None:
             return
         vacancy, application, candidate = loaded
         if action == "confirm":
+            candidate.consent_at = datetime.now(UTC)
             await _finish(ctx, vacancy, application, candidate)
         else:
             _ask_name(ctx, candidate)
@@ -143,7 +145,8 @@ async def _ask_next(ctx: Ctx, vacancy: Vacancy, application: Application, candid
     if candidate.contact and screening.validate_name(candidate.name):
         ctx.set_step(Step.cand_confirm, **base)
         ctx.reply(
-            texts.CONFIRM_DATA.format(name=escape(candidate.name), contact=escape(candidate.contact)),
+            texts.CONFIRM_DATA.format(name=escape(candidate.name), contact=escape(candidate.contact))
+            + f"\n\n<i>{texts.CONSENT_NOTE}</i>",
             _confirm_keyboard(),
         )
         return
@@ -244,7 +247,8 @@ async def _set_name(ctx: Ctx, raw: str, from_user_input: bool = False) -> None:
     _, _, candidate = loaded
     candidate.name = name
     ctx.set_step(Step.cand_contact, **_base_context(ctx))
-    ctx.reply(texts.ASK_CONTACT, [[Button(texts.SHARE_CONTACT_BUTTON, kind=ButtonKind.contact)]])
+    ctx.reply(texts.ASK_CONTACT.format(consent=texts.CONSENT_NOTE),
+              [[Button(texts.SHARE_CONTACT_BUTTON, kind=ButtonKind.contact)]])
 
 
 async def _set_contact(ctx: Ctx) -> None:
@@ -258,6 +262,8 @@ async def _set_contact(ctx: Ctx) -> None:
         return
     vacancy, application, candidate = loaded
     candidate.contact = phone
+    # Номер отправлен после показа уведомления о передаче данных — фиксируем согласие.
+    candidate.consent_at = datetime.now(UTC)
     await _finish(ctx, vacancy, application, candidate)
 
 

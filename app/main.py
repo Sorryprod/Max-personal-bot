@@ -11,7 +11,8 @@ from fastapi.staticfiles import StaticFiles
 from app.api import applications as applications_api
 from app.api import errors as api_errors
 from app.api import vacancies as vacancies_api
-from app.bot.router import Dispatcher
+from app.bot.router import COMMAND_MENU, Dispatcher
+from app.db import seed
 from app.config import Settings, get_settings
 from app.db.session import make_engine, make_session_factory
 from app.max import webhook
@@ -53,6 +54,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.links = AppLinks(settings, client)
     app.state.dispatcher = Dispatcher(app.state.session_factory, client, app.state.links)
 
+    if settings.seed_demo:
+        async with app.state.session_factory() as session, session.begin():
+            await seed.seed(session)
+
     poller: asyncio.Task[None] | None = None
     try:
         if not client.bot_username:
@@ -64,6 +69,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await _setup_updates(settings, client)
     except MaxApiError:
         log.exception("MAX API недоступен при старте — проверьте BOT_TOKEN и сеть")
+    try:
+        await client.set_commands(COMMAND_MENU)
+    except MaxApiError:
+        log.warning("Не удалось зарегистрировать меню команд бота", exc_info=True)
     if settings.updates_mode == "polling":
         poller = asyncio.create_task(run_polling(client, app.state.dispatcher))
 

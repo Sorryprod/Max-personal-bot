@@ -10,7 +10,7 @@ from sqlalchemy.exc import InterfaceError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.bot import texts
-from app.bot.handlers import candidate, common, employer
+from app.bot.handlers import account, candidate, common, employer
 from app.bot.states import Ctx, load_state
 from app.db.models import ProcessedUpdate
 from app.messaging import CallbackAnswer, EventKind, IncomingEvent, Messenger, Outbox, flush_outbox
@@ -31,6 +31,22 @@ async def mark_processed(session: AsyncSession, key: str) -> bool:
         stmt = insert(table).values(update_key=key)
     result = await session.execute(stmt)
     return result.rowcount == 1
+
+
+# Команды работают на любом шаге диалога; /start обрабатывается как событие start.
+COMMANDS = {
+    "/my": candidate.start,
+    "/privacy": account.privacy,
+    "/delete": account.ask_delete,
+}
+
+# Описания для меню команд в MAX.
+COMMAND_MENU = [
+    ("start", "Начать заново"),
+    ("my", "Мои отклики"),
+    ("privacy", "Какие данные хранит бот"),
+    ("delete", "Удалить мои данные"),
+]
 
 
 def default_callback_answer(event: IncomingEvent) -> CallbackAnswer:
@@ -59,6 +75,11 @@ async def route(ctx: Ctx) -> None:
             await common.greet(ctx)
         return
 
+    command = (event.text or "").strip().split(maxsplit=1)[0].lower() if event.kind == EventKind.text else ""
+    if command in COMMANDS:
+        await COMMANDS[command](ctx)
+        return
+
     step = ctx.state.step
     if step.startswith("emp_"):
         await employer.on_message(ctx)
@@ -77,6 +98,8 @@ async def _route_callback(ctx: Ctx) -> None:
         await employer.on_callback(ctx, rest)
     elif prefix == "cand":
         await candidate.on_callback(ctx, rest)
+    elif prefix == "acc":
+        await account.on_callback(ctx, rest)
     else:
         ctx.reply(texts.UNKNOWN_BUTTON)
 

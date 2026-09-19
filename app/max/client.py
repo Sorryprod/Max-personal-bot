@@ -97,6 +97,14 @@ class MaxClient:
             "POST", "/subscriptions", json={"url": url, "secret": secret, "update_types": update_types}
         )
 
+    async def set_commands(self, commands: list[tuple[str, str]]) -> None:
+        body = {"commands": [{"name": name, "description": description} for name, description in commands]}
+        try:
+            await self.request("PATCH", "/me/commands", json=body)
+        except MaxApiError:
+            # Документация называет /me/commands, официальная библиотека шлёт commands в PATCH /me.
+            await self.request("PATCH", "/me", json=body)
+
     async def list_subscriptions(self) -> list[dict[str, Any]]:
         data = await self.request("GET", "/subscriptions")
         return data.get("subscriptions", [])

@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     login_link_ttl_seconds: int = 24 * 3600
     webapp_dist: Path = BASE_DIR / "webapp" / "dist"
     log_level: str = "INFO"
+    # Загружать синтетические демо-вакансии и кандидатов при старте (идемпотентно).
+    seed_demo: bool = True
     # Часовой пояс, в котором работодатель задаёт и кандидат видит время собеседования.
     app_timezone: str = "Europe/Moscow"
 
