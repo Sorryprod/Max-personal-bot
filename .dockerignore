@@ -8,3 +8,4 @@ webapp/node_modules
 webapp/dist
 tests
 *.md
+docs
