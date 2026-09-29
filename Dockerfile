@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.7
-
 # --- 1. Сборка мини-приложения (пересобирается только при изменении webapp/) ---
 FROM node:24-alpine AS webapp
 WORKDIR /webapp
